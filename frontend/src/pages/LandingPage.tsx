@@ -180,6 +180,8 @@ const css = `
 @keyframes cv-grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-1%)}100%{transform:translate(0,0)}}
 @keyframes cv-sheen{from{transform:translateX(-120%)}to{transform:translateX(220%)}}
 @keyframes cv-blink{50%{opacity:0}}
+@keyframes cv-twinkle{0%,100%{opacity:.3}50%{opacity:1}}
+.cv-twinkle{animation:cv-twinkle 4s ease-in-out infinite;animation-delay:var(--d,0s)}
 
 .cv-word{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.08em}
 .cv-word>span{display:inline-block;animation:cv-rise 1s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0s)}
@@ -412,6 +414,9 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+
+        {/* floating evidence canvas on the right */}
+        <HeroCanvas c={c} />
 
         {/* scroll cue */}
         <a
@@ -917,5 +922,192 @@ function Faq({ c }: { c: Palette }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ───────────────────────── hero: floating evidence canvas ───────────────────────── */
+
+const nodes = [
+  { x: 70, y: 70, label: "p. 12", d: 1.0 },
+  { x: 250, y: 34, label: "", d: 1.2 },
+  { x: 470, y: 60, label: "p. 3", d: 1.4 },
+  { x: 572, y: 170, label: "p. 18", d: 1.6 },
+  { x: 580, y: 360, label: "", d: 1.8 },
+  { x: 470, y: 500, label: "p. 21", d: 2.0 },
+  { x: 230, y: 512, label: "", d: 2.2 },
+  { x: 40, y: 420, label: "p. 9", d: 2.4 },
+  { x: 22, y: 230, label: "", d: 2.5 },
+];
+
+const lines = [
+  "M70 70 Q160 20 250 34",
+  "M250 34 Q360 70 470 60",
+  "M470 60 Q540 80 572 170",
+  "M572 170 Q600 270 580 360",
+  "M580 360 Q560 450 470 500",
+  "M470 500 Q350 540 230 512",
+  "M230 512 Q110 520 40 420",
+  "M70 70 Q300 120 462 205",
+  "M40 420 Q200 440 378 352",
+  "M572 170 Q540 220 520 290",
+  "M580 360 Q545 330 520 290",
+];
+
+function HeroCanvas({ c }: { c: Palette }) {
+  const dark = c.bg === palettes.dark.bg;
+  const clay = dark ? "#C9917A" : "#A5624A";
+  const [lit, setLit] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLit(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const glass = {
+    borderColor: dark ? "rgba(255,255,255,0.16)" : "rgba(15,48,64,0.14)",
+    background: dark
+      ? "linear-gradient(145deg, rgba(24,37,44,0.96), rgba(10,17,21,0.9))"
+      : "linear-gradient(145deg, rgba(255,255,255,0.97), rgba(244,247,247,0.92))",
+    backdropFilter: "blur(20px) saturate(140%)",
+    WebkitBackdropFilter: "blur(20px) saturate(140%)",
+    boxShadow: dark
+      ? "0 28px 70px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.09)"
+      : "0 24px 60px rgba(15,48,64,0.24), inset 0 1px 0 #fff",
+  } as React.CSSProperties;
+
+  const mark = (text: string) => (
+    <span
+      className={`cv-mark ${lit ? "on" : ""}`}
+      style={{
+        ["--m" as string]: clay,
+        background: lit ? `${clay}44` : "transparent",
+        transition: "background 1s ease, background-size 1s cubic-bezier(.5,0,.2,1)",
+        padding: "0 3px",
+        borderRadius: 3,
+      }}
+    >
+      {text}
+    </span>
+  );
+
+  return (
+    <div
+      className="absolute bottom-[7%] right-[4%] z-10 hidden aspect-[600/540] w-[min(44vw,600px)] xl:block"
+      aria-hidden="true"
+    >
+      {/* constellation (behind the cards) */}
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 600 540" fill="none">
+        {lines.map((d, i) => (
+          <path
+            key={d}
+            d={d}
+            className="cv-draw"
+            stroke={c.accent}
+            strokeWidth="1"
+            opacity={dark ? 0.3 : 0.55}
+            style={{ ["--len" as string]: 700, ["--d" as string]: `${1 + i * 0.18}s` }}
+          />
+        ))}
+        {nodes.map((n) => (
+          <g key={`${n.x}-${n.y}`} className="cv-twinkle" style={{ ["--d" as string]: `${n.d}s` }}>
+            <circle cx={n.x} cy={n.y} r="7" fill={c.accent} opacity="0.12" />
+            <circle cx={n.x} cy={n.y} r="2.4" fill={c.accent} />
+            {n.label && (
+              <text x={n.x + 10} y={n.y + 3} fontSize="10" fontWeight="500" fill={c.text} stroke={c.bg} strokeWidth="3" paintOrder="stroke" fontFamily="Inter, sans-serif">
+                {n.label}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      {/* card stack */}
+      {/* back: faint context card */}
+      <div className="absolute left-[4%] top-[4%] w-[58%]">
+        <div className="cv-settle" style={{ ["--d" as string]: "1.1s", ["--r0" as string]: "-10deg", ["--r1" as string]: "-7deg" }}>
+          <div className="cv-drift" style={{ ["--d" as string]: "-1s" }}>
+            <div className="rounded-lg border p-5 opacity-90" style={glass}>
+              <p className="flex items-center justify-between text-[11px] font-medium" style={{ color: c.muted }}>
+                <span className="flex items-center gap-1.5"><Files size={11} /> regional-survey.pdf</span>
+                <span>p. 4</span>
+              </p>
+              <div className="mt-4 space-y-2.5">
+                {[92, 80, 66].map((w) => (
+                  <div key={w} className="h-1.5 rounded-full" style={{ width: `${w}%`, background: dark ? "rgba(255,255,255,0.14)" : "rgba(15,48,64,0.14)" }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* middle: first claim */}
+      <div className="absolute left-[20%] top-[26%] w-[58%]">
+        <div className="cv-settle" style={{ ["--d" as string]: "1.5s", ["--r0" as string]: "6deg", ["--r1" as string]: "3deg" }}>
+          <div className="cv-drift" style={{ ["--d" as string]: "-3s" }}>
+            <div className="rounded-lg border p-5" style={glass}>
+              <p className="flex items-center justify-between text-[11px] font-medium" style={{ color: c.muted }}>
+                <span className="flex items-center gap-1.5"><Files size={11} /> annual-report-2025.pdf</span>
+                <span style={{ color: c.accent }}>p. 18</span>
+              </p>
+              <p className="mt-3 text-[13px] leading-6">
+                Operating expenditure {mark("decreased by 12%")} compared with the previous financial year.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* front: conflicting claim */}
+      <div className="absolute left-[6%] top-[56%] w-[58%]">
+        <div className="cv-settle" style={{ ["--d" as string]: "1.9s", ["--r0" as string]: "-6deg", ["--r1" as string]: "-3deg" }}>
+          <div className="cv-drift" style={{ ["--d" as string]: "-5s" }}>
+            <div className="rounded-lg border p-5" style={glass}>
+              <p className="flex items-center justify-between text-[11px] font-medium" style={{ color: c.muted }}>
+                <span className="flex items-center gap-1.5"><Files size={11} /> financial-review-q4.pdf</span>
+                <span style={{ color: c.accent }}>p. 7</span>
+              </p>
+              <p className="mt-3 text-[13px] leading-6">
+                Total operating costs {mark("increased by 4.2%")} during the final reporting period.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* connectors to the evidence marker (above the cards) */}
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 600 540" fill="none">
+        <path className="cv-draw" d="M462 205 C490 215 505 250 520 284" stroke={clay} strokeWidth="1.3" style={{ ["--len" as string]: 700, ["--d" as string]: "3.2s" }} />
+        <path className="cv-draw" d="M378 352 C440 350 495 330 520 296" stroke={clay} strokeWidth="1.3" style={{ ["--len" as string]: 700, ["--d" as string]: "3.5s" }} />
+        <g className="cv-fade" style={{ ["--d" as string]: "3.2s" }}>
+          <circle cx="462" cy="205" r="3.2" fill={clay} />
+          <circle cx="378" cy="352" r="3.2" fill={clay} />
+        </g>
+      </svg>
+
+      {/* evidence marker */}
+      <div
+        className="cv-fade absolute"
+        style={{ left: `${(520 / 600) * 100}%`, top: `${(290 / 540) * 100}%`, transform: "translate(-50%, -50%)", ["--d" as string]: "3.8s" }}
+      >
+        <span className="absolute inset-0 rounded-full" style={{ background: clay, animation: "cv-ping 2.6s ease-out infinite" }} />
+        <span
+          className="relative flex h-9 w-9 items-center justify-center rounded-full text-base font-semibold"
+          style={{ background: clay, color: "#0B0F12", boxShadow: `0 0 28px ${clay}66` }}
+        >
+          ≠
+        </span>
+        <span
+          className="absolute left-1/2 top-[46px] -translate-x-1/2 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[11px] font-medium"
+          style={{
+            borderColor: dark ? "rgba(255,255,255,0.16)" : "rgba(15,48,64,0.16)",
+            background: dark ? "#0E181D" : "#FFFFFF",
+            color: c.text,
+            boxShadow: dark ? "0 10px 24px rgba(0,0,0,0.5)" : "0 10px 24px rgba(15,48,64,0.2)",
+          }}
+        >
+          Possible conflict · 2 sources
+        </span>
+      </div>
+    </div>
   );
 }
