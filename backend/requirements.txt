@@ -1,0 +1,25 @@
+# Web framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Validation and settings
+pydantic
+pydantic-settings
+email-validator
+
+# Database
+sqlalchemy
+alembic
+psycopg2-binary
+
+# Authentication
+pwdlib[argon2]
+pyjwt
+
+# Documents and AI
+pymupdf
+chromadb
+sentence-transformers
+# Add your hosted LLM provider's SDK here, for example: anthropic
+httpx

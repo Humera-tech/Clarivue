@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Local storage
+uploads/*
+!uploads/.gitkeep
+chroma_data/*
+!chroma_data/.gitkeep
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
