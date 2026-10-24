@@ -1,7 +1,9 @@
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 
 
 def create_document(
@@ -14,6 +16,7 @@ def create_document(
     storage_path: str,
     extracted_text: str | None = None,
     status: str = "uploaded",
+    chunks: list[dict] | None = None,
 ) -> Document:
     document = Document(
         user_id=user_id,
@@ -25,11 +28,28 @@ def create_document(
         status=status,
     )
 
-    db.add(document)
-    db.commit()
-    db.refresh(document)
+    try:
+        db.add(document)
+        db.flush()
 
-    return document
+        for chunk_data in chunks or []:
+            db.add(
+                DocumentChunk(
+                    document_id=document.id,
+                    page_number=chunk_data["page_number"],
+                    start_char=chunk_data["start_char"],
+                    end_char=chunk_data["end_char"],
+                    text=chunk_data["text"],
+                )
+            )
+
+        db.commit()
+        db.refresh(document)
+        return document
+
+    except Exception:
+        db.rollback()
+        raise
 
 
 def get_document_by_id(
@@ -42,7 +62,6 @@ def get_document_by_id(
         Document.id == document_id,
         Document.user_id == user_id,
     )
-
     return db.scalar(statement)
 
 
@@ -56,7 +75,6 @@ def list_documents(
         .where(Document.user_id == user_id)
         .order_by(Document.created_at.desc())
     )
-
     return list(db.scalars(statement).all())
 
 
@@ -65,5 +83,9 @@ def delete_document_record(
     *,
     document: Document,
 ) -> None:
-    db.delete(document)
-    db.commit()
+    try:
+        db.delete(document)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
