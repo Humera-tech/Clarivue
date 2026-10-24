@@ -11,6 +11,7 @@ from app.db.base import Base
 from app.db.session import engine
 from app.models.user import User
 from app.models.document import Document
+from app.api.routes.questions import router as questions_router
 
 
 @asynccontextmanager
@@ -44,3 +45,5 @@ def root():
         "message": "Clarivue API is running",
         "docs": "/docs",
     }
+
+app.include_router(questions_router, prefix="/api/v1")
