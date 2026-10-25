@@ -117,3 +117,52 @@ def delete_document_index(document_id: int) -> None:
     collection.delete(
         where={"document_id": document_id}
     )
+
+
+def get_document_index_stats(document_id: int) -> dict:
+    """Return indexing statistics for a document in ChromaDB."""
+    collection = get_collection()
+
+    results = collection.get(
+        where={"document_id": document_id},
+        include=["metadatas"],
+    )
+
+    metadatas = results.get("metadatas") or []
+
+    page_numbers = sorted({
+        int(item.get("page_number", 1))
+        for item in metadatas
+    })
+
+    return {
+        "document_id": document_id,
+        "indexed_chunk_count": len(metadatas),
+        "indexed_pages": page_numbers,
+    }
+
+def get_all_index_stats() -> dict:
+    """Return basic statistics for all chunks in the ChromaDB collection."""
+    collection = get_collection()
+
+    results = collection.get(include=["metadatas"])
+    metadatas = results.get("metadatas") or []
+
+    documents = {}
+
+    for metadata in metadatas:
+        document_id = int(metadata["document_id"])
+        documents.setdefault(document_id, []).append(
+            int(metadata.get("page_number", 1))
+        )
+
+    return {
+        "total_indexed_chunks": len(metadatas),
+        "documents": {
+            document_id: {
+                "indexed_chunk_count": len(pages),
+                "indexed_pages": sorted(set(pages)),
+            }
+            for document_id, pages in documents.items()
+        },
+    }
