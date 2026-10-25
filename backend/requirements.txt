@@ -11,5 +11,8 @@ pwdlib[argon2]
 pyjwt
 httpx
 pymupdf
+pytesseract
+Pillow
+python-docx
 chromadb
 sentence-transformers
