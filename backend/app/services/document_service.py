@@ -1,4 +1,3 @@
-
 import logging
 from pathlib import Path
 from uuid import uuid4
@@ -9,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.ingestion.chunker import chunk_pages
-from app.ingestion.pdf_extractor import extract_pdf_pages
+from app.ingestion.pdf_extractor import extract_document_pages
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.repositories.document_repository import (
@@ -44,7 +43,7 @@ async def upload_document(
 
     destination = upload_directory / stored_filename
     total_size = 0
-    chunks: list[dict] = []
+    document = None
 
     try:
         await file.seek(0)
@@ -52,6 +51,7 @@ async def upload_document(
         with destination.open("wb") as output:
             while True:
                 data = await file.read(UPLOAD_CHUNK_SIZE)
+
                 if not data:
                     break
 
@@ -65,53 +65,47 @@ async def upload_document(
 
                 output.write(data)
 
-        extracted_text = None
-        document_status = "uploaded"
+        try:
+            pages = extract_document_pages(destination)
 
-        if extension == ".pdf":
-            try:
-                pages = extract_pdf_pages(destination)
+            chunks = chunk_pages(
+                pages,
+                chunk_size=TEXT_CHUNK_SIZE,
+                overlap=TEXT_CHUNK_OVERLAP,
+            )
 
-                chunks = chunk_pages(
-                    pages,
-                    chunk_size=TEXT_CHUNK_SIZE,
-                    overlap=TEXT_CHUNK_OVERLAP,
+            if not chunks:
+                raise ValueError(
+                    "No text chunks could be created from this document."
                 )
 
-                logger.info(
-                    "Extracted %d pages and generated %d chunks for %s",
-                    len(pages),
-                    len(chunks),
-                    original_filename,
-                )
+            extracted_text = "\n\n".join(
+                f"[Page {page['page_number']}]\n{page['text']}"
+                for page in pages
+                if page["text"].strip()
+            )
 
-                if not chunks:
-                    raise ValueError(
-                        "No text chunks could be created from this PDF."
-                    )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
 
-                extracted_text = "\n\n".join(
-                    f"[Page {page['page_number']}]\n{page['text']}"
-                    for page in pages
-                    if page["text"].strip()
-                )
-                document_status = "processed"
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
 
-            except (ValueError, FileNotFoundError) as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=str(exc),
-                ) from exc
-
-            except Exception as exc:
-                logger.exception(
-                    "PDF processing failed: %s",
-                    original_filename,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="The PDF could not be processed.",
-                ) from exc
+        except Exception as exc:
+            logger.exception(
+                "Document extraction failed for %s",
+                original_filename,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The document could not be processed.",
+            ) from exc
 
         document = create_document(
             db,
@@ -121,60 +115,85 @@ async def upload_document(
             file_size=total_size,
             storage_path=str(destination),
             extracted_text=extracted_text,
-            status=document_status,
+            status="processing",
             chunks=chunks,
         )
 
-        if chunks:
+        saved_chunks = db.scalars(
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id == document.id)
+            .order_by(DocumentChunk.id)
+        ).all()
+
+        persisted_chunks = [
+            {
+                "id": chunk.id,
+                "text": chunk.text,
+                "page_number": chunk.page_number,
+            }
+            for chunk in saved_chunks
+        ]
+
+        try:
+            indexed_count = index_chunks(
+                document_id=document.id,
+                chunks=persisted_chunks,
+            )
+
+            if indexed_count != len(persisted_chunks):
+                raise RuntimeError(
+                    "Not all document chunks were indexed successfully."
+                )
+
+        except Exception as exc:
+            logger.exception(
+                "Vector indexing failed for document %d",
+                document.id,
+            )
+
             try:
-                saved_chunks = db.scalars(
-                    select(DocumentChunk)
-                    .where(DocumentChunk.document_id == document.id)
-                    .order_by(DocumentChunk.id)
-                ).all()
-
-                persisted_chunks = [
-                    {
-                        "id": chunk.id,
-                        "text": chunk.text,
-                        "page_number": chunk.page_number,
-                    }
-                    for chunk in saved_chunks
-                ]
-
-                indexed_count = index_chunks(
-                    document_id=document.id,
-                    chunks=persisted_chunks,
-                )
-
-                logger.info(
-                    "Indexed %d of %d saved chunks for document %d",
-                    indexed_count,
-                    len(persisted_chunks),
-                    document.id,
-                )
-
-                if indexed_count != len(persisted_chunks):
-                    logger.warning(
-                        "Some chunks for document %d were not indexed",
-                        document.id,
-                    )
-
+                delete_document_index(document.id)
             except Exception:
                 logger.exception(
-                    "Document %d was saved, but vector indexing failed",
+                    "Could not clean up the partial vector index for %d",
                     document.id,
                 )
+
+            document.status = "failed"
+            db.commit()
+            db.refresh(document)
+
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "The document was saved, but indexing failed. "
+                    "Please try uploading it again."
+                ),
+            ) from exc
+
+        document.status = "processed"
+        db.commit()
+        db.refresh(document)
+
+        logger.info(
+            "Processed document %d: %d chunks indexed",
+            document.id,
+            len(persisted_chunks),
+        )
 
         return document
 
     except HTTPException:
-        destination.unlink(missing_ok=True)
+        if document is None:
+            destination.unlink(missing_ok=True)
         raise
 
     except Exception as exc:
-        destination.unlink(missing_ok=True)
         db.rollback()
+
+        if document is None:
+            destination.unlink(missing_ok=True)
+
         logger.exception("Document upload failed")
 
         raise HTTPException(
