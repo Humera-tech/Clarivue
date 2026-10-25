@@ -1,23 +1,23 @@
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.models.password_reset_token import PasswordResetToken
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
-from app.models.user import User
 from app.models.document import Document
-from app.api.routes.questions import router as questions_router
+from app.models.document_chunk import DocumentChunk
+from app.models.password_reset_token import PasswordResetToken
+from app.models.user import User
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if settings.ENVIRONMENT == "development":
         Base.metadata.create_all(bind=engine)
+
     yield
 
 
@@ -36,6 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(api_router)
 
 
@@ -45,5 +46,3 @@ def root():
         "message": "Clarivue API is running",
         "docs": "/docs",
     }
-
-app.include_router(questions_router, prefix="/api/v1")
