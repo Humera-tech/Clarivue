@@ -1,0 +1,23 @@
+
+[
+  {
+    "question": "What is the main purpose of this document?",
+    "expected_answer": "Write the answer supported by the document here.",
+    "document_id": 1
+  },
+  {
+    "question": "Which important dates or deadlines are mentioned?",
+    "expected_answer": "Write the dates explicitly stated in the document here.",
+    "document_id": 1
+  },
+  {
+    "question": "What risks or limitations does the document identify?",
+    "expected_answer": "Write the risks or limitations stated in the document here.",
+    "document_id": 1
+  },
+  {
+    "question": "What is the capital of Japan?",
+    "expected_answer": "The document should not be assumed to contain this information.",
+    "document_id": 1
+  }
+]

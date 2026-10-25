@@ -18,3 +18,11 @@ chroma_data/*
 .vscode/
 .idea/
 .DS_Store
+
+
+
+# ChromaDB vector database
+data/chroma/
+
+# Generated RAG evaluation report
+evaluation/rag_evaluation_report.json
