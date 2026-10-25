@@ -13,7 +13,7 @@ MAX_TOP_K = 20
 
 # Chroma cosine distance: lower is more similar.
 # This is a configurable starting threshold, not a calibrated relevance score.
-MAX_COSINE_DISTANCE = 0.65
+MAX_COSINE_DISTANCE = 0.85
 
 
 def retrieve_relevant_chunks(
