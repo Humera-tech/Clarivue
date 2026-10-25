@@ -39,7 +39,10 @@ def validate_citations(answer: str, source_count: int) -> str:
         )
         return ""
 
-    answer = CITATION_PATTERN.sub(replace_invalid_citation, answer)
+    answer = CITATION_PATTERN = re.compile(
+    r"\[Source\s+(\d+)(?:,\s*Page\s+\d+)?\]",
+    re.IGNORECASE,
+)
     answer = re.sub(r"[ \t]{2,}", " ", answer)
     answer = re.sub(r" +([.,;:!?])", r"\1", answer)
 
