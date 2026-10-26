@@ -1,23 +1,28 @@
 
-import os
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import chromadb
 
+from app.core.config import settings
 from app.rag.embeddings import embed_query, embed_texts
 
+logger = logging.getLogger(__name__)
 
-CHROMA_PATH = os.getenv("CHROMA_PATH", "./data/chroma")
+CHROMA_PATH = settings.CHROMA_PERSIST_DIR
 COLLECTION_NAME = "clarivue_chunks"
 
 
 @lru_cache(maxsize=1)
 def get_collection():
-    Path(CHROMA_PATH).mkdir(parents=True, exist_ok=True)
+    persist_path = Path(CHROMA_PATH).resolve()
+    persist_path.mkdir(parents=True, exist_ok=True)
 
-    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    logger.info("Using ChromaDB persistence path: %s", persist_path)
+
+    client = chromadb.PersistentClient(path=str(persist_path))
 
     return client.get_or_create_collection(
         name=COLLECTION_NAME,
@@ -140,6 +145,7 @@ def get_document_index_stats(document_id: int) -> dict:
         "indexed_chunk_count": len(metadatas),
         "indexed_pages": page_numbers,
     }
+
 
 def get_all_index_stats() -> dict:
     """Return basic statistics for all chunks in the ChromaDB collection."""
