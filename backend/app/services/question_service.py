@@ -39,10 +39,7 @@ def validate_citations(answer: str, source_count: int) -> str:
         )
         return ""
 
-    answer = CITATION_PATTERN = re.compile(
-    r"\[Source\s+(\d+)(?:,\s*Page\s+\d+)?\]",
-    re.IGNORECASE,
-)
+    answer = CITATION_PATTERN.sub(replace_invalid_citation, answer)
     answer = re.sub(r"[ \t]{2,}", " ", answer)
     answer = re.sub(r" +([.,;:!?])", r"\1", answer)
 
@@ -78,7 +75,10 @@ def answer_document_question(
     user_id: int,
     request: QuestionRequest,
 ) -> QuestionResponse:
-    """Answer a document question using retrieved document evidence."""
+    """
+    Answer using retrieved document evidence when available,
+    with general knowledge as a fallback.
+    """
 
     document = (
         db.query(Document)
@@ -98,9 +98,14 @@ def answer_document_question(
     if document.status != "processed":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="This document has not been processed for question answering.",
+            detail=(
+                "This document has not been processed "
+                "for question answering."
+            ),
         )
 
+    # Retrieve evidence, but do not reject the question if no
+    # relevant chunks are found.
     try:
         matches = retrieve_relevant_chunks(
             document_id=document.id,
@@ -116,26 +121,6 @@ def answer_document_question(
             detail="Could not retrieve document evidence.",
         ) from exc
 
-    if not matches:
-        fallback_answer = (
-            "I couldn't find sufficiently relevant evidence in this document "
-            "to answer your question."
-        )
-
-        _save_conversation(
-            db,
-            user_id=user_id,
-            document_id=document.id,
-            question=request.question,
-            answer=fallback_answer,
-        )
-
-        return QuestionResponse(
-            question=request.question,
-            answer=fallback_answer,
-            sources=[],
-        )
-
     sources = [
         SourceReference(
             document_id=match["document_id"],
@@ -146,10 +131,13 @@ def answer_document_question(
         for match in matches
     ]
 
-    context = "\n\n".join(
-        f"[Source {i}, Page {source.page_number}]\n{source.text}"
-        for i, source in enumerate(sources, start=1)
-    )
+    if sources:
+        context = "\n\n".join(
+            f"[Source {i}, Page {source.page_number}]\n{source.text}"
+            for i, source in enumerate(sources, start=1)
+        )
+    else:
+        context = ""
 
     try:
         answer = generate_grounded_answer(
@@ -164,8 +152,8 @@ def answer_document_question(
 
         if not answer:
             answer = (
-                "I couldn't generate a reliable answer from the available "
-                "document evidence. Please try rephrasing your question."
+                "I couldn't generate a reliable answer. "
+                "Please try rephrasing your question."
             )
 
     except RateLimitError as exc:
@@ -179,7 +167,10 @@ def answer_document_question(
         logger.exception("Could not connect to Groq.")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI service is temporarily unavailable. Please try again.",
+            detail=(
+                "The AI service is temporarily unavailable. "
+                "Please try again."
+            ),
         ) from exc
 
     except APIStatusError as exc:
@@ -193,7 +184,10 @@ def answer_document_question(
         logger.error("AI answer generation error: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI service is not configured correctly or returned an invalid response.",
+            detail=(
+                "The AI service is not configured correctly "
+                "or returned an invalid response."
+            ),
         ) from exc
 
     except Exception as exc:
