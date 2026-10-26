@@ -18,23 +18,6 @@ import SettingsPage from "../pages/SettingsPage";
 import EvidencePage from "../pages/EvidencePage";
 import HistoryPage from "../pages/HistoryPage";
 
-function DashboardPlaceholder({ title }: { title: string }) {
-  return (
-    <section className="py-10">
-      <p className="mb-3 text-xs uppercase tracking-[0.2em] text-[#A56F63] dark:text-[#D99B7F]">
-        CLARIVUE WORKSPACE
-      </p>
-
-      <h1 className="font-serif text-4xl">{title}</h1>
-
-      <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500 dark:text-slate-400">
-        This section is coming soon. We'll build it into your Clarivue
-        research workspace next.
-      </p>
-    </section>
-  );
-}
-
 export default function AppRoutes() {
   return (
     <ThemeProvider>
@@ -53,7 +36,17 @@ export default function AppRoutes() {
             element={<ResetPasswordPage />}
           />
 
-          {/* Protected dashboard */}
+          {/* Standalone Ask Clarivue page — outside DashboardLayout */}
+          <Route
+            path="/dashboard/ask"
+            element={
+              <ProtectedRoute>
+                <AnalysisPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected dashboard pages */}
           <Route
             path="/dashboard"
             element={
@@ -62,32 +55,11 @@ export default function AppRoutes() {
               </ProtectedRoute>
             }
           >
-            {/* Dashboard overview */}
             <Route index element={<DashboardPage />} />
-
-            {/* Document library */}
-            <Route
-              path="documents"
-              element={<DocumentsPage />}
-            />
-
-            {/* Ask Clarivue / document analysis */}
-            <Route
-              path="ask"
-              element={<AnalysisPage />}
-            />
-
-            {/* Evidence library */}
+            <Route path="documents" element={<DocumentsPage />} />
             <Route path="evidence" element={<EvidencePage />} />
-
-            {/* Research history */}
             <Route path="history" element={<HistoryPage />} />
-
-            {/* Profile and preferences */}
-            <Route
-              path="settings"
-              element={<SettingsPage />}
-            />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
 
           {/* Redirect unknown URLs */}
