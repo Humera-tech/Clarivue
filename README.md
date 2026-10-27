@@ -19,31 +19,6 @@ Ask questions across documents. Follow the evidence. Discover what doesn't agree
 
 </div>
 
----
-
-## Table of Contents
-
-1. [Overview](#1-overview)
-2. [Problem Statement](#2-problem-statement)
-3. [Proposed Solution](#3-proposed-solution)
-4. [Features and Scope](#4-features-and-scope)
-5. [Tech Stack](#5-tech-stack)
-6. [System Architecture](#6-system-architecture)
-7. [Workflows](#7-workflows)
-8. [RAG Pipeline](#8-rag-pipeline)
-9. [Claim and Contradiction Detection](#9-claim-and-contradiction-detection)
-10. [Database Design](#10-database-design)
-11. [API Reference](#11-api-reference)
-12. [Project Structure](#12-project-structure)
-13. [Getting Started](#13-getting-started)
-14. [Evaluation Methodology](#14-evaluation-methodology)
-15. [Security and Reliability](#15-security-and-reliability)
-16. [Development Roadmap](#16-development-roadmap)
-17. [Deployment](#17-deployment)
-18. [Limitations and Ethical Considerations](#18-limitations-and-ethical-considerations)
-19. [Future Improvements](#19-future-improvements)
-20. [Contributing](#20-contributing)
-21. [License](#21-license)
 
 ---
 
