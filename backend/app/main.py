@@ -11,6 +11,7 @@ from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
+from app.api.routes import evidence
 
 
 @asynccontextmanager
@@ -46,3 +47,7 @@ def root():
         "message": "Clarivue API is running",
         "docs": "/docs",
     }
+app.include_router(
+    evidence.router,
+    prefix="/api/v1",
+)
