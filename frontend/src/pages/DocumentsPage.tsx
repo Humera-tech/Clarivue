@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText,
@@ -26,6 +25,45 @@ import {
 } from "../services/documentService";
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".docx", ".txt"];
+
+function getDocumentStatus(status: string) {
+  const normalizedStatus = status.trim().toLowerCase();
+
+  if (["processed", "completed", "success"].includes(normalizedStatus)) {
+    return {
+      label: "Processed",
+      className:
+        "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+      icon: <CheckCircle2 size={12} />,
+    };
+  }
+
+  if (
+    ["processing", "pending", "uploading", "queued"].includes(
+      normalizedStatus
+    )
+  ) {
+    return {
+      label: "Processing",
+      className: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+      icon: <LoaderCircle size={12} className="animate-spin" />,
+    };
+  }
+
+  if (["failed", "error"].includes(normalizedStatus)) {
+    return {
+      label: "Failed",
+      className: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+      icon: <AlertCircle size={12} />,
+    };
+  }
+
+  return {
+    label: status || "Unknown",
+    className: "bg-slate-500/10 text-slate-600 dark:text-slate-300",
+    icon: <FileText size={12} />,
+  };
+}
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -67,9 +105,7 @@ export default function DocumentsPage() {
     void loadDocuments();
   }, []);
 
-  async function uploadFiles(
-    fileList: FileList | File[] | null
-  ) {
+  async function uploadFiles(fileList: FileList | File[] | null) {
     if (!fileList || fileList.length === 0 || uploading) {
       return;
     }
@@ -128,9 +164,7 @@ export default function DocumentsPage() {
         } catch (error) {
           failedNames.push(
             `${file.name}: ${
-              error instanceof Error
-                ? error.message
-                : "Upload failed."
+              error instanceof Error ? error.message : "Upload failed."
             }`
           );
         }
@@ -162,7 +196,7 @@ export default function DocumentsPage() {
           const latestDocuments = await getDocuments();
           setDocuments(latestDocuments);
         } catch {
-          // Keep the successful upload records visible.
+          // Keep successful upload records visible if refresh fails.
         }
       }
     } finally {
@@ -235,9 +269,9 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 py-9 text-slate-900 dark:text-[#F3F4F4]">
+    <main className="mx-auto w-full max-w-7xl space-y-8 py-9 pb-12 text-slate-900 dark:text-[#F3F4F4]">
       {/* Page heading */}
-      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+      <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#A56F63] dark:text-[#D99B7F]">
             Your knowledge, organized
@@ -278,10 +312,10 @@ export default function DocumentsPage() {
             void uploadFiles(event.target.files);
           }}
         />
-      </div>
+      </section>
 
       {/* Drag and drop */}
-      <div
+      <section
         onDragOver={(event) => {
           event.preventDefault();
 
@@ -298,7 +332,7 @@ export default function DocumentsPage() {
           event.preventDefault();
           setDragging(false);
 
-          if (deletingId === null) {
+          if (!uploading && deletingId === null) {
             void uploadFiles(event.dataTransfer.files);
           }
         }}
@@ -324,7 +358,7 @@ export default function DocumentsPage() {
 
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-[#9AADB8]">
           {uploading
-            ? "Your selected files are being sent securely to your Clarivue backend."
+            ? "Your selected files are being sent to the Clarivue backend for processing."
             : "Drag and drop files here, or browse your computer to add documents to your research library."}
         </p>
 
@@ -340,7 +374,7 @@ export default function DocumentsPage() {
         >
           Browse files
         </button>
-      </div>
+      </section>
 
       {/* Upload feedback */}
       {uploadMessage && (
@@ -389,6 +423,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-4 border-b border-slate-200 p-5 dark:border-white/[0.08] sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
             <h2 className="font-serif text-2xl">Your library</h2>
+
             <p className="mt-1 text-xs text-slate-500 dark:text-[#91A6B2]">
               {loading
                 ? "Loading your library..."
@@ -456,6 +491,7 @@ export default function DocumentsPage() {
               size={25}
               className="mx-auto animate-spin text-[#D99B7F]"
             />
+
             <p className="mt-4 text-sm text-slate-500 dark:text-[#91A6B2]">
               Loading your documents...
             </p>
@@ -463,10 +499,7 @@ export default function DocumentsPage() {
         ) : pageError && documents.length === 0 ? (
           /* Load error */
           <div className="px-6 py-16 text-center">
-            <AlertCircle
-              size={25}
-              className="mx-auto text-rose-500"
-            />
+            <AlertCircle size={25} className="mx-auto text-rose-500" />
 
             <h3 className="mt-4 font-serif text-xl">
               We couldn't load your library
@@ -522,76 +555,86 @@ export default function DocumentsPage() {
         ) : (
           /* Real documents */
           <div className="divide-y divide-slate-200 dark:divide-white/[0.07]">
-            {visibleDocuments.map((document) => (
-              <div
-                key={document.id}
-                className="flex flex-col gap-4 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-white/[0.02] sm:flex-row sm:items-center sm:px-6"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#D99B7F]/15 text-[#A56F63] dark:text-[#D99B7F]">
-                  <FileText size={20} />
-                </div>
+            {visibleDocuments.map((document) => {
+              const status = getDocumentStatus(document.status);
 
-                <div className="min-w-0 flex-1">
-                  <p className="break-all text-sm font-medium">
-                    {document.filename}
-                  </p>
+              return (
+                <div
+                  key={document.id}
+                  className="flex flex-col gap-4 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-white/[0.02] sm:flex-row sm:items-center sm:px-6"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#D99B7F]/15 text-[#A56F63] dark:text-[#D99B7F]">
+                    <FileText size={20} />
+                  </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-[#91A6B2]">
-                    <span>{document.file_type.toUpperCase()}</span>
-                    <span>{formatFileSize(document.file_size)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-all text-sm font-medium">
+                      {document.filename}
+                    </p>
 
-                    <span className="flex items-center gap-1">
-                      <Clock3 size={12} />
-                      Added {formatDocumentDate(document.created_at)}
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-[#91A6B2]">
+                      <span>{document.file_type.toUpperCase()}</span>
+                      <span>{formatFileSize(document.file_size)}</span>
+
+                      <span className="flex items-center gap-1">
+                        <Clock3 size={12} />
+                        Added {formatDocumentDate(document.created_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] ${status.className}`}
+                    >
+                      {status.icon}
+                      {status.label}
                     </span>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteDocument(document)}
+                      disabled={deletingId !== null || uploading}
+                      aria-label={`Delete ${document.filename}`}
+                      title="Delete document"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-rose-400"
+                    >
+                      {deletingId === document.id ? (
+                        <LoaderCircle
+                          size={16}
+                          className="animate-spin"
+                        />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between gap-3 sm:justify-end">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] text-emerald-700 dark:text-emerald-300">
-                    <CheckCircle2 size={12} />
-                    {document.status}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteDocument(document)}
-                    disabled={
-                      deletingId !== null || uploading
-                    }
-                    aria-label={`Delete ${document.filename}`}
-                    title="Delete document"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-rose-400"
-                  >
-                    {deletingId === document.id ? (
-                      <LoaderCircle
-                        size={16}
-                        className="animate-spin"
-                      />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
 
-      {/* Current processing capabilities */}
-      <div className="flex items-start gap-3 rounded-xl border border-slate-200/70 px-4 py-4 dark:border-white/[0.07]">
+      {/* Processing information */}
+      <section className="flex items-start gap-3 rounded-xl border border-slate-200/70 px-4 py-4 dark:border-white/[0.07]">
         <Sparkles
           size={17}
           className="mt-0.5 shrink-0 text-[#A56F63] dark:text-[#D99B7F]"
         />
 
-        <p className="text-xs leading-5 text-slate-500 dark:text-[#91A6B2]">
-          Your files are now saved through the Clarivue backend. Document
-          text extraction, indexing, and evidence-based search are not
-          connected yet. Those capabilities will be added in the next stages.
-        </p>
-      </div>
-    </div>
+        <div>
+          <p className="text-sm font-medium text-slate-700 dark:text-[#F3F4F4]">
+            Your documents, ready for research.
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#91A6B2]">
+            Clarivue extracts text from supported documents and prepares it
+            for retrieval. Scanned PDFs may require OCR, and evidence
+            retrieval and answer quality will be refined in upcoming updates.
+          </p>
+        </div>
+      </section>
+    </main>
   );
 }
